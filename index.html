@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Visor Topográfico 3D - Minería</title>
+  <title>Visor Topográfico 3D - PADS</title>
   
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Cesium.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
@@ -131,13 +131,12 @@
     <button class="nav-btn" style="width: 100%; margin-top: 10px; background: #00bcd4; color: black; font-weight: bold; border: none;" onclick="finishAndExportPolyline()">✅ Terminar y Exportar ASCII</button>
   </div>
 
-  <!-- PANEL DE ÁREA POLÍGONO SOBRE EL TILESET -->
   <div class="info-panel panel-polygon" id="panelPolygon">
     <h2>Área de Polígono (Tileset)</h2>
     <div class="metric-row"><span>Vértices:</span><span class="metric-val val-polygon" id="polygonCount">0</span></div>
     <div class="metric-row"><span>Área Horizontal (2D):</span><span class="metric-val val-polygon" id="polyAreaH">0.00 m²</span></div>
     <div class="metric-row"><span>Área Superficial (3D):</span><span class="metric-val val-polygon" id="polyArea3D">0.00 m²</span></div>
-    <div style="font-size: 10px; color: #8b949e; margin-top: 8px;">Haz clic en los vértices del tajo.</div>
+    <div style="font-size: 10px; color: #8b949e; margin-top: 8px;">Haz clic en los vértices del pad.</div>
     <button class="nav-btn" style="width: 100%; margin-top: 10px; background: #8957e5; color: white; font-weight: bold; border: none;" onclick="finishAndCalculatePolygon()">✅ Calcular y Guardar</button>
   </div>
 
@@ -158,30 +157,12 @@
 
   <script>
     // =========================================================================
-    // 1. CONFIGURACIÓN DEL DICCIONARIO DE ZONAS (LAS 3 ZONAS RESTAURADAS)
+    // 1. CONFIGURACIÓN DEL DICCIONARIO DE ZONAS (ESTABLECIDO A PADS)
     // =========================================================================
     const CESIUM_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6InVNakVHTkI1M0hjYXlVTnciLCJqdGkiOiJiNGMyMWUxYy1kZTE2LTQ5YTEtYWJkNi0wY2NjNzkzMjQxZTgiLCJpZCI6NDc3MzE0LCJzdWIiOiJqY2FzdHJvaiIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJUb2tlbiBGaWxvcyIsImlhdCI6MTc5Mjc2NjcyM30.VOOvDZ48Cn1E1sIokn137omuaU3RRjvsC4jk9lh1sEI";
-    
-    // Cambia este nombre para cargar el modelo de otra zona: "BERMEJAL_GUADALUPE", "FILOS", o "PADS"
-    const ZONA_ACTIVA = "PADS DE LIXIVIACIÓN"; 
+    const ZONA_ACTIVA = "PADS"; 
 
     const CONFIG_ZONAS = {
-      "BERMEJAL_GUADALUPE": {
-        nombre: "TAJO BERMEJAL - GUADALUPE",
-        assetId: 0000000, // <--- PONER TU ASSET ID
-        lat0: 17.8579401103632, lon0: -99.6739536626923,
-        offset: [428637.51373973046, 1974398.0838580697, 3.8437755266563727],
-        rvec: [0.00011132995333956913, -0.00003292231694213758, -0.00043669032632740194],
-        scale: 1.0002526469530397
-      },
-      "FILOS": {
-        nombre: "TAJO LOS FILOS",
-        assetId: 0000000, // <--- PONER TU ASSET ID
-        lat0: 17.8579401103632, lon0: -99.6739536626923,
-        offset: [428637.51373973046, 1974398.0838580697, 3.8437755266563727],
-        rvec: [0.00011132995333956913, -0.00003292231694213758, -0.00043669032632740194],
-        scale: 1.0002526469530397
-      },
       "PADS": {
         nombre: "PADS DE LIXIVIACIÓN",
         assetId: 6068327, // <--- PONER TU ASSET ID
@@ -189,10 +170,28 @@
         offset: [426491.06053362874, 1975081.382389519, 3.8771747150963165],
         rvec: [0.00009673884755205756, 0.0000010868499923518604, -0.0005409057326296537],
         scale: 1.000261022361419
+      },
+      "BERMEJAL_GUADALUPE": {
+        nombre: "TAJO BERMEJAL - GUADALUPE",
+        assetId: 0000000,
+        lat0: 17.8579401103632, lon0: -99.6739536626923,
+        offset: [428637.51373973046, 1974398.0838580697, 3.8437755266563727],
+        rvec: [0.00011132995333956913, -0.00003292231694213758, -0.00043669032632740194],
+        scale: 1.0002526469530397
+      },
+      "FILOS": {
+        nombre: "TAJO LOS FILOS",
+        assetId: 0000000,
+        lat0: 17.8579401103632, lon0: -99.6739536626923,
+        offset: [428637.51373973046, 1974398.0838580697, 3.8437755266563727],
+        rvec: [0.00011132995333956913, -0.00003292231694213758, -0.00043669032632740194],
+        scale: 1.0002526469530397
       }
     };
 
-    const activeZone = CONFIG_ZONAS[ZONA_ACTIVA];
+    // Validación de zona para prevenir errores de referencia indefinida
+    const activeZone = CONFIG_ZONAS[ZONA_ACTIVA] || CONFIG_ZONAS["PADS"];
+
     document.title = "Visor 3D - " + activeZone.nombre;
     document.getElementById('projectTitle').innerText = activeZone.nombre;
     document.getElementById('zoneTag').innerText = "SISTEMA LOCAL - " + activeZone.nombre;
@@ -406,10 +405,8 @@
         return;
       }
 
-      // Convertir cada punto clicado (que ya tiene Z del tileset) a coordenadas locales de mina
       let localPoints = toolPoints.map(p => getMinePlanCoordinates(Cesium.Cartographic.fromCartesian(p), activeZone));
 
-      // 1. Cálculo de Área Horizontal 2D (Teorema de Gauss / Shoelace)
       let area2D = 0;
       let n = localPoints.length;
       for (let i = 0; i < n; i++) {
@@ -419,92 +416,10 @@
       }
       area2D = Math.abs(area2D) / 2.0;
 
-      // 2. Cálculo de Área Superficial / Drapada 3D (Triangulación por abanico desde el vértice 0)
       let area3D = 0;
       for (let i = 1; i < n - 1; i++) {
         let p0 = localPoints[0];
         let p1 = localPoints[i];
         let p2 = localPoints[i+1];
 
-        // Vectores 3D (E, N, Z)
-        let v1 = { e: p1.rawE - p0.rawE, n: p1.rawN - p0.rawN, z: p1.rawZ - p0.rawZ };
-        let v2 = { e: p2.rawE - p0.rawE, n: p2.rawN - p0.rawN, z: p2.rawZ - p0.rawZ };
-
-        // Producto cruz 3D
-        let cx = v1.n * v2.z - v1.z * v2.n;
-        let cy = v1.z * v2.e - v1.e * v2.z;
-        let cz = v1.e * v2.n - v1.n * v2.e;
-
-        let crossMag = Math.sqrt(cx*cx + cy*cy + cz*cz);
-        area3D += 0.5 * crossMag;
-      }
-
-      // Actualizar Panel UI
-      document.getElementById('polyAreaH').innerText = area2D.toFixed(2) + ' m² (' + (area2D / 10000).toFixed(4) + ' ha)';
-      document.getElementById('polyArea3D').innerText = area3D.toFixed(2) + ' m² (' + (area3D / 10000).toFixed(4) + ' ha)';
-
-      // Dibujar polígono relleno final en pantalla sobre la superficie del tileset
-      viewer.entities.add({
-        polygon: {
-          hierarchy: new Cesium.PolygonHierarchy(toolPoints),
-          material: Cesium.Color.fromCssColorString('#8957e5').withAlpha(0.4),
-          perPositionHeight: true,
-          outline: true,
-          outlineColor: Cesium.Color.fromCssColorString('#d8b4fe')
-        }
-      });
-
-      // Guardar en historial de pruebas (DEV_TEST)
-      let record = {
-        timestampLocal: new Date().toLocaleString(),
-        modeloId: ZONA_ACTIVA,
-        zone: activeZone.nombre,
-        type: "AREA_POLIGONO_TILESET",
-        vertices: localPoints.length,
-        areaHorizontal_m2: area2D.toFixed(2),
-        areaSuperficial3D_m2: area3D.toFixed(2)
-      };
-      let history = getHistory();
-      history.push(record);
-      saveHistory(history);
-    }
-
-    function clearActiveMeasurement() {
-      resetGraphicsOnly(); currentMode = null;
-      document.getElementById('measureBtn').classList.remove('active-measure'); document.getElementById('measureBtn').innerText = '📏 Medir';
-      document.getElementById('slopeBtn').classList.remove('active-slope'); document.getElementById('slopeBtn').innerText = '📐 Cresta-Pie';
-      document.getElementById('planeBtn').classList.remove('active-plane'); document.getElementById('planeBtn').innerText = '▰ Análisis 3 Puntos';
-      document.getElementById('polyBtn').classList.remove('active-poly'); document.getElementById('polyBtn').innerText = '〰️ Polilínea';
-      document.getElementById('polygonBtn').classList.remove('active-polygon'); document.getElementById('polygonBtn').innerText = '⬛ Área Polígono';
-      
-      document.getElementById('panelMeasure').style.display = 'none'; 
-      document.getElementById('panelSlope').style.display = 'none'; 
-      document.getElementById('panelPlane').style.display = 'none'; 
-      document.getElementById('panelPoly').style.display = 'none'; 
-      document.getElementById('panelPolygon').style.display = 'none';
-      document.getElementById('clearBtn').style.display = 'none'; 
-      viewer.canvas.style.cursor = 'default';
-    }
-
-    function takeExecutiveScreenshot() {
-      viewer.render(); const link = document.createElement('a'); link.download = `Lab_Captura_${ZONA_ACTIVA}_${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = viewer.canvas.toDataURL('image/png'); document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    }
-    
-    function exportToCSV() {
-      const list = getHistory(); if (list.length === 0) { alert("No hay registros de laboratorio aún."); return; }
-      let csvContent = "data:text/csv;charset=utf-8,ID,Fecha_Local,Zona,Tipo,Vertices,Area_Horizontal_m2,Area_Superficial_3D_m2\r\n";
-      list.forEach((item, idx) => {
-        csvContent += `${idx + 1},"${item.timestampLocal}","${item.zone}","${item.type}",${item.vertices || ''},${item.areaHorizontal_m2 || ''},${item.areaSuperficial3D_m2 || ''}\r\n`;
-      });
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `Lab_Reporte_${ZONA_ACTIVA}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  </script>
-</body>
-</html>
+        let v1 =
