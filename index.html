@@ -157,13 +157,10 @@
 
   <script>
     // =========================================================================
-    // 1. CONFIGURACIÓN BÁSICA (ESTILO LÍNEA BASE ORIGINAL)
+    // 1. CONFIGURACIÓN BÁSICA (CAMBIA TU ZONA Y ASSET ID AQUÍ)
     // =========================================================================
     const CESIUM_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6ImJQV3Nnb3ZGcXd2TEEta00iLCJqdGkiOiJiNGMyMWUxYy1kZTE2LTQ5YTEtYWJkNi0wY2NjNzkzMjQxZTgiLCJpZCI6NDc3MzE0LCJzdWIiOiJqY2FzdHJvaiIsImlzcyI6Imh0dHBzOi8vYXBpLmNlc2l1bS5jb20iLCJhdWQiOiJUb2tlbiBGaWxvcyIsImlhdCI6MTc5MzAzNDMyOX0.WL5gFrYrmJZUr44ug0hF24-q7_IsbNK87RSc3J41A24";
-    
-    // Cambia aquí de manera directa la zona que desees cargar:
-    // Opciones: "BERMEJAL_GUADALUPE", "FILOS", "PADS"
-    const ZONA_ACTIVA = "PADS"; 
+    const ZONA_ACTIVA = "PADS"; // Opciones: "BERMEJAL_GUADALUPE", "FILOS", "PADS"
 
     const CONFIG_ZONAS = {
       "BERMEJAL_GUADALUPE": {
@@ -192,7 +189,6 @@
       }
     };
 
-    // Lectura directa y limpia como en el diseño original
     const activeZone = CONFIG_ZONAS[ZONA_ACTIVA];
 
     document.title = "Visor 3D - " + activeZone.nombre;
@@ -385,21 +381,60 @@
           viewer.canvas.style.cursor = 'default'; currentMode = null;
         }
       }
-      // POLÍGONO DE ÁREA
-      else if (currentMode === 'polygon') {
-        document.getElementById('polygonCount').innerText = toolPoints.length;
+      // POLÍLÍNEA / POLÍGONO DE ÁREA (BLINDADO CONTRA CRASH DE 1 SOLA POSICIÓN)
+      else if (currentMode === 'polyline' || currentMode === 'polygon') {
+        if (currentMode === 'polyline') {
+          document.getElementById('polyCount').innerText = toolPoints.length;
+          let totalLen = 0;
+          for (let i = 0; i < toolPoints.length - 1; i++) {
+            totalLen += Cesium.Cartesian3.distance(toolPoints[i], toolPoints[i+1]);
+          }
+          document.getElementById('polyLength').innerText = totalLen.toFixed(2) + ' m';
+        } else if (currentMode === 'polygon') {
+          document.getElementById('polygonCount').innerText = toolPoints.length;
+        }
+
         if (toolPoints.length === 1) {
-          let polyLine = viewer.entities.add({
+          let lineColor = currentMode === 'polyline' ? '#00e676' : '#a371f7';
+          let dynamicLine = viewer.entities.add({
             polyline: {
-              positions: new Cesium.CallbackProperty(() => toolPoints, false),
+              // Si hay menos de 2 puntos, duplicamos el único punto para evitar el crash de Cesium
+              positions: new Cesium.CallbackProperty(() => {
+                return toolPoints.length < 2 ? [toolPoints[0], toolPoints[0]] : toolPoints;
+              }, false),
               width: 3,
-              material: Cesium.Color.fromCssColorString('#a371f7')
+              material: Cesium.Color.fromCssColorString(lineColor),
+              depthFailMaterial: Cesium.Color.fromCssColorString(lineColor).withAlpha(0.5)
             }
           });
-          toolEntities.push(polyLine);
+          toolEntities.push(dynamicLine);
         }
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    // FUNCIÓN PARA EXPORTAR POLILÍNEA ASCII
+    function finishAndExportPolyline() {
+      if (toolPoints.length < 2) {
+        alert("Agrega al menos 2 vértices para exportar la línea.");
+        return;
+      }
+      let ascii = "PUNTO,ESTE_X,NORTE_Y,ELEV_Z\r\n";
+      toolPoints.forEach((cartesian, idx) => {
+        const carto = Cesium.Cartographic.fromCartesian(cartesian);
+        const local = getMinePlanCoordinates(carto, activeZone);
+        ascii += `${idx+1},${local.rawE.toFixed(4)},${local.rawN.toFixed(4)},${local.rawZ.toFixed(4)}\r\n`;
+      });
+      const blob = new Blob([ascii], { type: "text/plain;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      let dateStr = new Date().toISOString().slice(0, 19).replace(/:/g,"-").replace("T", "_");
+      link.setAttribute("download", `Polilinea_${ZONA_ACTIVA}_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      clearActiveMeasurement();
+    }
 
     // CÁLCULO DE ÁREA DIRECTO SOBRE LA TRIANGULACIÓN DEL TILESET
     function finishAndCalculatePolygon() {
